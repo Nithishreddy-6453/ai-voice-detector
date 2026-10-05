@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Detector Pro</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+        }
+        .card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            width: 400px;
+            text-align: center;
+        }
+        h1 { margin-top: 0; color: #333; }
+        p { color: #666; margin-bottom: 2rem; }
+
+        .upload-area {
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8fafc;
+        }
+        .upload-area:hover {
+            border-color: #4299e1;
+            background: #ebf8ff;
+        }
+        .file-name {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #4a5568;
+            font-weight: bold;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            margin-top: 20px;
+            background-color: #3182ce;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #2b6cb0; }
+        button:disabled { background-color: #cbd5e0; cursor: not-allowed; }
+
+        #result {
+            margin-top: 25px;
+            display: none;
+            padding: 20px;
+            border-radius: 10px;
+            animation: fadeIn 0.5s;
+        }
+        
+        /* Result Styles */
+        .human-result {
+            background-color: #c6f6d5;
+            color: #22543d;
+            border: 2px solid #9ae6b4;
+        }
+        .ai-result {
+            background-color: #fed7d7;
+            color: #822727;
+            border: 2px solid #feb2b2;
+        }
+
+        .confidence { font-size: 0.9rem; opacity: 0.8; margin-top: 5px; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>🎙️ Voice Detective</h1>
+        <p>Upload an audio clip to detect AI fakes</p>
+
+        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            <span style="font-size: 2rem;">📁</span>
+            <div style="margin-top: 10px;">Click to Upload Audio</div>
+            <input type="file" id="fileInput" accept="audio/*" style="display:none" onchange="showFile()">
+            <div id="fileName" class="file-name"></div>
+        </div>
+
+        <button id="scanBtn" onclick="scanAudio()">🔍 Analyze Voice</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function showFile() {
+            const file = document.getElementById('fileInput').files[0];
+            if (file) {
+                document.getElementById('fileName').innerText = "Selected: " + file.name;
+            }
+        }
+
+        async function scanAudio() {
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('result');
+            const btn = document.getElementById('scanBtn');
+
+            if (fileInput.files.length === 0) {
+                alert("Please select a file first!");
+                return;
+            }
+
+            // 1. Show Loading State
+            btn.innerText = "⏳ Processing...";
+            btn.disabled = true;
+            resultDiv.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                // 2. Send to Python API
+                const response = await fetch('http://127.0.0.1:5000/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                // 3. Show Result
+                btn.innerText = "🔍 Analyze Voice";
+                btn.disabled = false;
+                resultDiv.style.display = 'block';
+
+                if (data.error) {
+                    resultDiv.className = '';
+                    resultDiv.style.background = '#eee';
+                    resultDiv.innerHTML = "❌ Error: " + data.error;
+                } else {
+                    if (data.is_ai) {
+                        resultDiv.className = 'ai-result';
+                        resultDiv.innerHTML = `
+                            <h2 style="margin:0">🤖 AI DETECTED</h2>
+                            <div class="confidence">${data.confidence} Confidence</div>
+                        `;
+                    } else {
+                        resultDiv.className = 'human-result';
+                        resultDiv.innerHTML = `
+                            <h2 style="margin:0">👤 HUMAN VOICE</h2>
+                            <div class="confidence">${data.confidence} Confidence</div>
+                        `;
+                    }
+                }
+            } catch (err) {
+                btn.innerText = "🔍 Analyze Voice";
+                btn.disabled = false;
+                alert("Error connecting to server. Is 'python api.py' running?");
+                console.error(err);
+            }
+        }
+    </script>
+</body>
+</html>
